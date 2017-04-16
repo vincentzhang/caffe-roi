@@ -126,6 +126,7 @@ class BaseConvolutionLayer : public Layer<Dtype> {
 #ifndef CPU_ONLY
   inline void conv_im2col_gpu(const Dtype* data, Dtype* col_buff) {
     if (!force_nd_im2col_ && num_spatial_axes_ == 2) {
+      // force 2D-specific convolution 
       im2col_gpu(data, conv_in_channels_,
           conv_input_shape_.cpu_data()[1], conv_input_shape_.cpu_data()[2],
           kernel_shape_.cpu_data()[0], kernel_shape_.cpu_data()[1],
