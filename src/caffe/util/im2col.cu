@@ -22,17 +22,20 @@ __global__ void im2col_gpu_kernel(const int n, const Dtype* data_im,
     const int h_offset = h_col * stride_h - pad_h;
     const int w_offset = w_col * stride_w - pad_w;
     Dtype* data_col_ptr = data_col;
-    data_col_ptr += (c_col * height_col + h_col) * width_col + w_col;
+    data_col_ptr += (c_col * height_col + h_col) * width_col + w_col; // output
     const Dtype* data_im_ptr = data_im;
-    data_im_ptr += (c_im * height + h_offset) * width + w_offset;
+    data_im_ptr += (c_im * height + h_offset) * width + w_offset; // input
     for (int i = 0; i < kernel_h; ++i) {
       for (int j = 0; j < kernel_w; ++j) {
-        int h_im = h_offset + i * dilation_h;
+        int h_im = h_offset + i * dilation_h; // index of the input
         int w_im = w_offset + j * dilation_w;
         *data_col_ptr =
             (h_im >= 0 && w_im >= 0 && h_im < height && w_im < width) ?
             data_im_ptr[i * dilation_h * width + j * dilation_w] : 0;
         data_col_ptr += height_col * width_col;
+        // fill in output one column at a time
+        // increment height_col * wid_col each time, which corresponds to one item in the
+        // kernel; each column is k * k long.
       }
     }
   }

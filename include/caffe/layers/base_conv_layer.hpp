@@ -7,6 +7,7 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/im2col.hpp"
+#include "caffe/util/im2col_roi.hpp"
 
 namespace caffe {
 
@@ -44,11 +45,20 @@ class BaseConvolutionLayer : public Layer<Dtype> {
 #ifndef CPU_ONLY
   void forward_gpu_gemm(const Dtype* col_input, const Dtype* weights,
       Dtype* output, bool skip_im2col = false);
+  void forward_gpu_gemm_roi(const Dtype* input,
+    const Dtype* rois, const int num_rois, const Dtype* weights, 
+    Dtype* output, bool skip_im2col = false);
   void forward_gpu_bias(Dtype* output, const Dtype* bias);
   void backward_gpu_gemm(const Dtype* input, const Dtype* weights,
-      Dtype* col_output);
+      Dtype* col_output); // does not match var name in the implementation
+  void backward_gpu_gemm_roi(const Dtype* output,
+    const Dtype* rois, const int num_rois,
+    const Dtype* weights, Dtype* input);
   void weight_gpu_gemm(const Dtype* col_input, const Dtype* output, Dtype*
       weights);
+  void weight_gpu_gemm_roi(const Dtype* input,
+    const Dtype* rois, const int num_rois,
+    const Dtype* output, Dtype* weights);
   void backward_gpu_bias(Dtype* bias, const Dtype* input);
 #endif
 
@@ -155,6 +165,36 @@ class BaseConvolutionLayer : public Layer<Dtype> {
           dilation_.gpu_data(), data);
     }
   }
+  inline void roi_conv_im2col_gpu(const Dtype* data, const Dtype* rois, 
+      const int num_rois, Dtype* col_buff) {
+    if (!force_nd_im2col_ && num_spatial_axes_ == 2) {
+      // force 2D-specific convolution 
+      roi_im2col_gpu(data, rois, num_rois, conv_in_channels_,
+          conv_input_shape_.cpu_data()[1], conv_input_shape_.cpu_data()[2],
+          kernel_shape_.cpu_data()[0], kernel_shape_.cpu_data()[1],
+          pad_.cpu_data()[0], pad_.cpu_data()[1],
+          stride_.cpu_data()[0], stride_.cpu_data()[1],
+          dilation_.cpu_data()[0], dilation_.cpu_data()[1], col_buff);
+    } else {
+      // nd convolution with roi has not been implemented
+      NOT_IMPLEMENTED;
+    }
+  }
+  inline void roi_conv_col2im_gpu(const Dtype* col_buff, const Dtype* rois, 
+		  const int num_rois, Dtype* data) {
+    if (!force_nd_im2col_ && num_spatial_axes_ == 2) {
+      col2im_gpu(col_buff, conv_in_channels_,
+          conv_input_shape_.cpu_data()[1], conv_input_shape_.cpu_data()[2],
+          kernel_shape_.cpu_data()[0], kernel_shape_.cpu_data()[1],
+          pad_.cpu_data()[0], pad_.cpu_data()[1],
+          stride_.cpu_data()[0], stride_.cpu_data()[1],
+          dilation_.cpu_data()[0], dilation_.cpu_data()[1], data);
+    } else {
+      // nd convolution with roi has not been implemented
+      NOT_IMPLEMENTED;
+    }
+  }
+
 #endif
 
   int num_kernels_im2col_;

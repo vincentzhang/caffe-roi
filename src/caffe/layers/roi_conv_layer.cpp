@@ -19,6 +19,27 @@ void ROIConvolutionLayer<Dtype>::compute_output_shape() {
   }
 }
 
+template <typename Dtype>
+void ROIConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom, 
+    const vector<Blob<Dtype>*>& top) {
+  BaseConvolutionLayer<Dtype>::LayerSetUp(bottom, top);
+  ROIConvolutionParameter roi_conv_param = this->layer_param_.roi_convolution_param();
+  spatial_scale_ = roi_conv_param.spatial_scale();
+  LOG(INFO) << "Spatial scale: " << spatial_scale_;
+}
+
+template <typename Dtype>
+void ROIConvolutionLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top) {
+  NOT_IMPLEMENTED;
+}
+
+template <typename Dtype>
+void ROIConvolutionLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom){
+  NOT_IMPLEMENTED;
+}
+
 INSTANTIATE_CLASS(ROIConvolutionLayer);
 REGISTER_LAYER_CLASS(ROIConvolution);
 

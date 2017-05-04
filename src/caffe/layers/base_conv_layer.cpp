@@ -349,6 +349,64 @@ void BaseConvolutionLayer<Dtype>::forward_gpu_bias(Dtype* output,
 }
 
 template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::forward_gpu_gemm_roi(const Dtype* input,
+    const Dtype* rois, const int num_rois, const Dtype* weights, 
+    Dtype* output, bool skip_im2col) {
+  const Dtype* col_buff = input;
+  if (!is_1x1_) {
+    if (!skip_im2col) {
+      roi_conv_im2col_gpu(input, rois, num_rois, col_buffer_.mutable_gpu_data());
+    }
+    col_buff = col_buffer_.gpu_data();
+  }
+  for (int g = 0; g < group_; ++g) {
+    caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, conv_out_channels_ /
+        group_, conv_out_spatial_dim_, kernel_dim_,
+        (Dtype)1., weights + weight_offset_ * g, col_buff + col_offset_ * g,
+        (Dtype)0., output + output_offset_ * g);
+  }
+}
+
+template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::weight_gpu_gemm_roi(const Dtype* input,
+    const Dtype* rois, const int num_rois,
+    const Dtype* output, Dtype* weights) {
+  const Dtype* col_buff = input;
+  if (!is_1x1_) {
+    // this line seems redundant
+    // Edit: not redundant because for batch_size > 1, only 1 image gets stored
+    // in the col_buff_
+    roi_conv_im2col_gpu(input, rois, num_rois, col_buffer_.mutable_gpu_data());
+    col_buff = col_buffer_.gpu_data();
+  }
+  for (int g = 0; g < group_; ++g) {
+    caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, conv_out_channels_ / group_,
+        kernel_dim_, conv_out_spatial_dim_,
+        (Dtype)1., output + output_offset_ * g, col_buff + col_offset_ * g,
+        (Dtype)1., weights + weight_offset_ * g);
+  }
+}
+
+template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::backward_gpu_gemm_roi(const Dtype* output,
+    const Dtype* rois, const int num_rois,
+    const Dtype* weights, Dtype* input) {
+  Dtype* col_buff = col_buffer_.mutable_gpu_data();
+  if (is_1x1_) {
+    col_buff = input;
+  }
+  for (int g = 0; g < group_; ++g) {
+    caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
+        conv_out_spatial_dim_, conv_out_channels_ / group_,
+        (Dtype)1., weights + weight_offset_ * g, output + output_offset_ * g,
+        (Dtype)0., col_buff + col_offset_ * g);
+  }
+  if (!is_1x1_) {
+    roi_conv_col2im_gpu(col_buff, rois, num_rois, input);
+  }
+}
+
+template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::backward_gpu_gemm(const Dtype* output,
     const Dtype* weights, Dtype* input) {
   Dtype* col_buff = col_buffer_.mutable_gpu_data();
