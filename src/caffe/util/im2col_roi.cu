@@ -1,8 +1,8 @@
 #include <algorithm>
 
 #include "caffe/common.hpp"
-//#include "caffe/fast_rcnn_layers.hpp"
 #include "caffe/util/im2col_roi.hpp"
+#include <stdio.h>
 
 namespace caffe {
 
@@ -23,6 +23,16 @@ __device__ int num_rois_contain_pt(const int x, const int y, const Dtype* rois, 
 			num_rois_out++;
 	}
     return num_rois_out;
+}
+
+template <typename Dtype>
+__device__ bool any_rois_contain_pt(const int x, const int y, const Dtype* rois, const int num_rois, 
+        const int kernel_h, const int kernel_w){
+	for (int i = 0; i< num_rois; i++){
+		if ( is_pt_inside_roi<Dtype>(x,y,&rois[5*i],kernel_h,kernel_w) )
+            return true;
+	}
+    return false;
 }
 
 template <typename Dtype>
@@ -55,7 +65,9 @@ __global__ void roi_im2col_gpu_kernel(const int n, const Dtype* data_im,
         // (w_im, h_im) is the (x,y) of the point
         int num_rois_contain = 0;
         if (h_im >= 0 && w_im >= 0 && h_im < height && w_im < width)
-            num_rois_contain = num_rois_contain_pt(w_im, h_im, rois, num_rois, kernel_h, kernel_w);
+            //num_rois_contain = num_rois_contain_pt(w_im, h_im, rois, num_rois, kernel_h, kernel_w);
+            num_rois_contain = any_rois_contain_pt(w_im, h_im, rois, num_rois, kernel_h, kernel_w) ? 1:0;
+        //printf("num_rois_contain: %d\n", num_rois_contain);
             // if no roi contain this point, the value will be zero
         *data_col_ptr = num_rois_contain * data_im_ptr[i * dilation_h * width + j * dilation_w];
         data_col_ptr += height_col * width_col;
@@ -122,8 +134,13 @@ __global__ void roi_col2im_gpu_kernel(const int n, const Dtype* data_col,
     const int w_im = index % width + pad_w;
     const int h_im = (index / width) % height + pad_h;
     const int c_im = index / (width * height);
-    int num_rois_contain = num_rois_contain_pt(w_im, h_im, rois, num_rois, kernel_h, kernel_w);
-    if (num_rois_contain == 0) {
+    //int num_rois_contain = num_rois_contain_pt(w_im, h_im, rois, num_rois, kernel_h, kernel_w);
+    //if (num_rois_contain == 0) {
+    //    // if no roi contain this pt, this pixel does not propagate diff
+    //    data_im[index] = 0;
+    //    continue;
+    // }
+    if (!any_rois_contain_pt(w_im, h_im, rois, num_rois, kernel_h, kernel_w)) {
         // if no roi contain this pt, this pixel does not propagate diff
         data_im[index] = 0;
         continue;

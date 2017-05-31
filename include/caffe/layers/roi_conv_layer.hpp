@@ -37,7 +37,13 @@ class ROIConvolutionLayer : public BaseConvolutionLayer<Dtype> {
   virtual inline bool reverse_dimensions() { return false; }
   virtual void compute_output_shape();
 
-  void rois_convert_coordinate(Dtype* rois, int num_rois, Dtype spatial_scale);
+  //void rois_convert_coordinate(Dtype* rois, int num_rois, Dtype spatial_scale);
+  // Convert a vector of integer to string
+  inline string vec_to_string(const vector<int>& my_vector){
+    stringstream result;
+    copy(my_vector.begin(), my_vector.end(), std::ostream_iterator<int>(result, " "));
+    return result.str();
+  }
 
   Dtype spatial_scale_;
   Dtype* rois;

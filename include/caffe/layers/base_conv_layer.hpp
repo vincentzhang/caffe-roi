@@ -72,6 +72,13 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   // Compute height_out_ and width_out_ from other parameters.
   virtual void compute_output_shape() = 0;
 
+  // Convert a vector of integer to string
+  inline string vec_to_string(const vector<int>& my_vector){
+    stringstream result;
+    copy(my_vector.begin(), my_vector.end(), std::ostream_iterator<int>(result, " "));
+    return result.str();
+  }
+
   /// @brief The spatial dimensions of a filter kernel.
   Blob<int> kernel_shape_;
   /// @brief The spatial dimensions of the stride.
@@ -102,6 +109,7 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   bool bias_term_;
   bool is_1x1_;
   bool force_nd_im2col_;
+  bool is_roi;
 
  private:
   // wrap im2col/col2im so we don't have to remember the (long) argument lists

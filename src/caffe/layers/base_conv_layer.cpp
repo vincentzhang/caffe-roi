@@ -13,6 +13,7 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   // Configure the kernel size, padding, stride, and inputs.
   ConvolutionParameter conv_param = this->layer_param_.convolution_param();
+  is_roi = conv_param.is_roi();
   force_nd_im2col_ = conv_param.force_nd_im2col();
   channel_axis_ = bottom[0]->CanonicalAxisIndex(conv_param.axis());
   const int first_spatial_axis = channel_axis_ + 1;
@@ -182,6 +183,7 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   this->param_propagate_down_.resize(this->blobs_.size(), true);
 }
 
+
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
@@ -192,9 +194,18 @@ void BaseConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   CHECK_EQ(bottom[0]->shape(channel_axis_), channels_)
       << "Input size incompatible with convolution kernel.";
   // TODO: generalize to handle inputs of different shapes.
-  for (int bottom_id = 1; bottom_id < bottom.size(); ++bottom_id) {
-    CHECK(bottom[0]->shape() == bottom[bottom_id]->shape())
-        << "All inputs must have the same shape.";
+  if (is_roi) {
+    LOG(INFO) << "bottom[0] shape : " << vec_to_string(bottom[0]->shape());
+    LOG(INFO) << "bottom[0] data: " << bottom[0]->cpu_data()[0];
+    for (int bottom_id = 1; bottom_id < bottom.size(); ++bottom_id) {
+  	LOG(INFO) << "bottom[" << bottom_id << "] shape : " << vec_to_string(bottom[bottom_id]->shape());
+  	}
+  }
+  else {
+    for (int bottom_id = 1; bottom_id < bottom.size(); ++bottom_id) {
+      CHECK(bottom[0]->shape() == bottom[bottom_id]->shape())
+      << "All inputs must have the same shape.";
+	}
   }
   // Shape the tops.
   bottom_shape_ = &bottom[0]->shape();

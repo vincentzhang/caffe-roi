@@ -17,6 +17,8 @@ void ROIConvolutionLayer<Dtype>::compute_output_shape() {
         / stride_data[i] + 1;
     this->output_shape_.push_back(output_dim);
   }
+  	LOG(INFO) << "output_shape : " << vec_to_string(this->output_shape_);
+
 }
 
 template <typename Dtype>

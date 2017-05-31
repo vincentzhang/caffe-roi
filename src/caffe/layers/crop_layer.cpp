@@ -42,7 +42,7 @@ void CropLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   // Initialize offsets to 0 and the new shape to the current shape of the data.
   offsets = vector<int>(input_dim, 0);
   vector<int> new_shape(bottom[0]->shape());
-
+  //LOG(INFO) << "input_dim: " << input_dim;
   // Determine crop offsets and the new shape post-crop.
   for (int i = 0; i < input_dim; ++i) {
     int crop_offset = 0;
@@ -58,6 +58,8 @@ void CropLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
         crop_offset = param.offset(i - start_axis);
       }
       // Check that the crop and offset are within the dimension's bounds.
+      //LOG(INFO) << "bottom[0].shape(" << i << "): " << bottom[0]->shape(i);
+      //LOG(INFO) << "bottom[1].shape(" << i << "): " << bottom[1]->shape(i);
       CHECK_GE(bottom[0]->shape(i) - crop_offset, bottom[1]->shape(i))
           << "the crop for dimension " << i << " is out-of-bounds with "
           << "size " << bottom[1]->shape(i) << " and offset " << crop_offset;
