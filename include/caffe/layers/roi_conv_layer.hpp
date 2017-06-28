@@ -47,6 +47,7 @@ class ROIConvolutionLayer : public BaseConvolutionLayer<Dtype> {
 
   Dtype spatial_scale_;
   Dtype* rois;
+  const Dtype* rois_orig;
   int num_rois;
 };
 

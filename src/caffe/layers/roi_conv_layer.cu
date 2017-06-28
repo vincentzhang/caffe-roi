@@ -48,6 +48,7 @@ void ROIConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* bottom_data = bottom[0]->gpu_data();
   // Each ROI = [batch_index x1 y1 x2 y2]
   rois = bottom[1]->mutable_gpu_data();
+  rois_orig = bottom[1]->cpu_data();
   //LOG(INFO) << "rois address: " << rois; 
   num_rois = bottom[1]->num();
   Dtype* top_data = top[0]->mutable_gpu_data();
@@ -65,6 +66,7 @@ void ROIConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       this->forward_gpu_bias(top_data + n * this->top_dim_, bias);
     }
   }
+  rois = bottom[1]->mutable_gpu_data();
   // 1. Add all rois together: for overlapped regions, take the summation of
   //    activations.
   // 2. When reshaping the input image, we slide the kernel across the image,
