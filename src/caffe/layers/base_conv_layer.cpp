@@ -195,11 +195,11 @@ void BaseConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       << "Input size incompatible with convolution kernel.";
   // TODO: generalize to handle inputs of different shapes.
   if (is_roi) {
-    LOG(INFO) << "bottom[0] shape : " << vec_to_string(bottom[0]->shape());
-    LOG(INFO) << "bottom[0] data: " << bottom[0]->cpu_data()[0];
-    for (int bottom_id = 1; bottom_id < bottom.size(); ++bottom_id) {
-  	LOG(INFO) << "bottom[" << bottom_id << "] shape : " << vec_to_string(bottom[bottom_id]->shape());
-  	}
+    //LOG(INFO) << "bottom[0] shape : " << vec_to_string(bottom[0]->shape());
+    //LOG(INFO) << "bottom[0] data: " << bottom[0]->cpu_data()[0];
+    //for (int bottom_id = 1; bottom_id < bottom.size(); ++bottom_id) {
+      //LOG(INFO) << "bottom[" << bottom_id << "] shape : " << vec_to_string(bottom[bottom_id]->shape());
+    //}
   }
   else {
     for (int bottom_id = 1; bottom_id < bottom.size(); ++bottom_id) {
