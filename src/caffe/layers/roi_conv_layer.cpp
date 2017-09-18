@@ -17,7 +17,7 @@ void ROIConvolutionLayer<Dtype>::compute_output_shape() {
         / stride_data[i] + 1;
     this->output_shape_.push_back(output_dim);
   }
- //LOG(INFO) << "output_shape : " << vec_to_string(this->output_shape_);
+  //LOG(INFO) << "output_shape : " << vec_to_string(this->output_shape_);
 
 }
 
@@ -27,7 +27,7 @@ void ROIConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   BaseConvolutionLayer<Dtype>::LayerSetUp(bottom, top);
   ROIConvolutionParameter roi_conv_param = this->layer_param_.roi_convolution_param();
   spatial_scale_ = roi_conv_param.spatial_scale();
-  LOG(INFO) << "Spatial scale: " << spatial_scale_;
+  //LOG(INFO) << "Spatial scale: " << spatial_scale_;
 }
 
 template <typename Dtype>
