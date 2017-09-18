@@ -35,6 +35,9 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   // we just called weight_cpu_gemm with the same input.
   void forward_cpu_gemm(const Dtype* input, const Dtype* weights,
       Dtype* output, bool skip_im2col = false);
+  void forward_cpu_gemm_roi(const Dtype* input,
+    const Dtype* rois, const int num_rois, const Dtype* weights, 
+    Dtype* output, bool skip_im2col = false);
   void forward_cpu_bias(Dtype* output, const Dtype* bias);
   void backward_cpu_gemm(const Dtype* input, const Dtype* weights,
       Dtype* output);
@@ -125,6 +128,20 @@ class BaseConvolutionLayer : public Layer<Dtype> {
       im2col_nd_cpu(data, num_spatial_axes_, conv_input_shape_.cpu_data(),
           col_buffer_shape_.data(), kernel_shape_.cpu_data(),
           pad_.cpu_data(), stride_.cpu_data(), dilation_.cpu_data(), col_buff);
+    }
+  }
+  inline void roi_conv_im2col_cpu(const Dtype* data, const Dtype* rois, 
+      const int num_rois, Dtype* col_buff) {
+    if (!force_nd_im2col_ && num_spatial_axes_ == 2) {
+      roi_im2col_cpu(data, rois, num_rois, conv_in_channels_,
+          conv_input_shape_.cpu_data()[1], conv_input_shape_.cpu_data()[2],
+          kernel_shape_.cpu_data()[0], kernel_shape_.cpu_data()[1],
+          pad_.cpu_data()[0], pad_.cpu_data()[1],
+          stride_.cpu_data()[0], stride_.cpu_data()[1],
+          dilation_.cpu_data()[0], dilation_.cpu_data()[1], col_buff);
+    } else {
+      // nd convolution with roi has not been implemented
+      NOT_IMPLEMENTED;
     }
   }
   inline void conv_col2im_cpu(const Dtype* col_buff, Dtype* data) {

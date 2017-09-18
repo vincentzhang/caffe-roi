@@ -10,8 +10,8 @@ template <typename Dtype>
 __device__ bool is_pt_inside_roi(const int x, const int y, const Dtype* roi, 
         const int kernel_h, const int kernel_w){
 	// check if the point (x,y) is inside the ROI
-	return (roi[1]-kernel_w/2 <= x <= roi[3]+kernel_w/2) && 
-        (roi[2]-kernel_h/2 <= y <= roi[4]+kernel_h/2);
+	return (roi[1]-kernel_w/2 <= x) && (x <= roi[3]+kernel_w/2) && 
+        (roi[2]-kernel_h/2 <= y) && (y <= roi[4]+kernel_h/2);
 }
 
 template <typename Dtype>
