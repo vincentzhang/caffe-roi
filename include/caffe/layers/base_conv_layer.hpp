@@ -54,7 +54,7 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   void forward_gpu_bias(Dtype* output, const Dtype* bias);
   void backward_gpu_gemm(const Dtype* input, const Dtype* weights,
       Dtype* col_output); // does not match var name in the implementation
-  void backward_gpu_gemm_roi(const Dtype* output,
+  void backward_gpu_gemm_roi(Dtype* output, Dtype* mask,
     const Dtype* rois, const int num_rois,
     const Dtype* weights, Dtype* input);
   void weight_gpu_gemm(const Dtype* col_input, const Dtype* output, Dtype*
@@ -214,22 +214,43 @@ class BaseConvolutionLayer : public Layer<Dtype> {
           pad_.cpu_data()[0], pad_.cpu_data()[1],
           stride_.cpu_data()[0], stride_.cpu_data()[1],
           dilation_.cpu_data()[0], dilation_.cpu_data()[1], data);
+      //roi_col2im_gpu(col_buff, rois, num_rois, conv_in_channels_,
+      //    conv_input_shape_.cpu_data()[1], conv_input_shape_.cpu_data()[2],
+      //    kernel_shape_.cpu_data()[0], kernel_shape_.cpu_data()[1],
+      //    pad_.cpu_data()[0], pad_.cpu_data()[1],
+      //    stride_.cpu_data()[0], stride_.cpu_data()[1],
+      //    dilation_.cpu_data()[0], dilation_.cpu_data()[1], data);
     } else {
       // nd convolution with roi has not been implemented
       NOT_IMPLEMENTED;
     }
   }
+  inline void roi_conv_mask_output_gpu(Dtype* output, Dtype* mask, const Dtype* rois, const int num_rois) {
+    // dimention of output
+    const int channel = conv_out_channels_;
+    const int height = output_shape_[0];
+    const int width = output_shape_[1];
+    //LOG(INFO) << "shape: " << channel << " " << height << " " << width;
+    //LOG(INFO) << "num_rois: " << num_rois;
+    mask_output_gpu(output, mask, rois, num_rois, channel, height, width);
+}
 
 #endif
+
+  void pixel_list(Dtype x1, Dtype y1, Dtype x2, Dtype y2,const int height,
+        const int width, const int channel, set<int>& pixels);
+  //void mask_pixels(Dtype* output, const set<int>& pixels);
+void mask_pixels(Dtype* output, const int height, const int width,
+const int channel, const set<int>& pixels);
 
   int num_kernels_im2col_;
   int num_kernels_col2im_;
   int conv_out_channels_;
   int conv_in_channels_;
-  int conv_out_spatial_dim_;
+  int conv_out_spatial_dim_;// Ho*Wo
   int kernel_dim_;
   int col_offset_;
-  int output_offset_;
+  int output_offset_; // Co*Ho*Wo/group
 
   Blob<Dtype> col_buffer_;
   Blob<Dtype> bias_multiplier_;

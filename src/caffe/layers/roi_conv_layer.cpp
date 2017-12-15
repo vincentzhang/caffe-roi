@@ -22,6 +22,15 @@ void ROIConvolutionLayer<Dtype>::compute_output_shape() {
 }
 
 template <typename Dtype>
+void ROIConvolutionLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top){
+    BaseConvolutionLayer<Dtype>::Reshape(bottom,top);
+    top[1]->Reshape(bottom[1]->shape()); // reshape the top rois to match the bottom rois
+    output_buffer_.Reshape(top[0]->shape()); // reshape the top_diff buffer match the top_diff
+    mask_buffer_.Reshape(top[0]->shape()); // reshape the mask buffer match the top_diff
+}
+
+template <typename Dtype>
 void ROIConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom, 
     const vector<Blob<Dtype>*>& top) {
   BaseConvolutionLayer<Dtype>::LayerSetUp(bottom, top);

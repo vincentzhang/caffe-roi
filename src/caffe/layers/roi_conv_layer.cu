@@ -1,7 +1,7 @@
 #include <vector>
+#include <stdio.h>
 
 #include "caffe/layers/roi_conv_layer.hpp"
-#include <stdio.h>
 
 namespace caffe {
 
@@ -10,7 +10,6 @@ __global__ void rois_convert_coordinate(Dtype* rois, const int num_rois, const D
 	// format of rois
 	// Each ROI = [batch_index x1 y1 x2 y2]
   CUDA_KERNEL_LOOP(index, num_rois) {
-//	printf("ready for converting %d rois\n", num_rois);
 	int i = index*5;
 	//for ( int i = 0; i<num_rois; i++) {
 	 //printf("processing rois[%d]: [%f,%f,%f,%f,%f]\n", index, rois[i],rois[i+1],rois[i+2], rois[i+3], rois[i+4]);
@@ -42,16 +41,15 @@ __global__ void show_rois(Dtype* rois, const int num_rois){
 template <typename Dtype>
 void ROIConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-  //LOG(INFO) <<"In Forward_gpu";
   const Dtype* weight = this->blobs_[0]->gpu_data();
   // conv: bottom[0]; rois: bottom[1]
   const Dtype* bottom_data = bottom[0]->gpu_data();
   // Each ROI = [batch_index x1 y1 x2 y2]
-  rois = bottom[1]->mutable_gpu_data();
-  rois_orig = bottom[1]->cpu_data();
-  //LOG(INFO) << "rois address: " << rois; 
   num_rois = bottom[1]->num();
+  top[1]->CopyFrom(*(bottom[1])); // copy the rois from bottom to top
   Dtype* top_data = top[0]->mutable_gpu_data();
+  rois = top[1]->mutable_gpu_data();
+ 
   // Hold the output rois in the coordinate space of conv5
   // a function to convert the coordinate system into conv5
   rois_convert_coordinate<Dtype><<<CAFFE_GET_BLOCKS(num_rois),
@@ -66,7 +64,6 @@ void ROIConvolutionLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       this->forward_gpu_bias(top_data + n * this->top_dim_, bias);
     }
   }
-  //rois = bottom[1]->mutable_gpu_data();
   // 1. Add all rois together: for overlapped regions, take the summation of
   //    activations.
   // 2. When reshaping the input image, we slide the kernel across the image,
@@ -81,36 +78,66 @@ void ROIConvolutionLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   const Dtype* weight = this->blobs_[0]->gpu_data();
   Dtype* weight_diff = this->blobs_[0]->mutable_gpu_diff();
   // Each ROI = [batch_index x1 y1 x2 y2]
-  //Dtype* bottom_rois = bottom[top.size()]->mutable_gpu_data();
-  //num_rois = bottom[top.size()]->num();
-  //rois = rois_convert_coordinate(bottom_rois, num_rois, spatial_scale_);
-  for (int i = 0; i < top.size(); ++i) {
-    const Dtype* top_diff = top[i]->gpu_diff();
+  int i = 0; // only process the first top which is the feature map, the second top is the rois
+  //const Dtype* top_diff = top[i]->gpu_diff();
+  //LOG(INFO) << "Shape of top " << top[i]->shape_string();
+  //LOG(INFO) << "Shape of output_buffer_ before" << output_buffer_.shape_string();
+  output_buffer_.CopyFrom(*(top[i]), true); // copy the diff from top 
+  //LOG(INFO) << "Shape of output_buffer_ " << output_buffer_.shape_string();
+  Dtype* top_diff_buffer_ = output_buffer_.mutable_gpu_diff();
+  Dtype* mask = mask_buffer_.mutable_gpu_diff();
+  const int count = top[i]->count();
+  caffe_gpu_set(count, Dtype(0.), mask);// reset the mask
+  //int total = 0;
+  //for(int j=0;j<mask_buffer_.count(); j++){
+  //    LOG(INFO) << "Iteration " << j;
+  //    mask[j] = 0;
+  //    total += mask[j];
+  //}
+  //LOG(INFO) << "Sum of mask is " << total << " , of size: " << mask_buffer_.count(); 
+  //rois = top[1]->mutable_cpu_data(); // copy data from gpu to cpu
+  //LOG(INFO) << "Backward GPU: Bias Gradient";
     // Bias gradient, if necessary.
     // Does not affect diff wrt the bias
     if (this->bias_term_ && this->param_propagate_down_[1]) {
       Dtype* bias_diff = this->blobs_[1]->mutable_gpu_diff();
       for (int n = 0; n < this->num_; ++n) {
-        this->backward_gpu_bias(bias_diff, top_diff + n * this->top_dim_);
+        // iterate through the batch
+          // original implementation
+        //this->backward_gpu_bias(bias_diff, top_diff + n * this->top_dim_);
+        this->backward_gpu_bias(bias_diff, top_diff_buffer_ + n * this->top_dim_);
       }
     }
     if (this->param_propagate_down_[0] || propagate_down[i]) {
       const Dtype* bottom_data = bottom[i]->gpu_data();
       Dtype* bottom_diff = bottom[i]->mutable_gpu_diff();
+      //LOG(INFO) << "Backward GPU: Weight Gradient. Batch Size: " << this->num_;
       for (int n = 0; n < this->num_; ++n) {
         // gradient w.r.t. weight. Note that we will accumulate diffs.
         if (this->param_propagate_down_[0]) {
           this->weight_gpu_gemm_roi(bottom_data + n * this->bottom_dim_, rois, num_rois,
-              top_diff + n * this->top_dim_, weight_diff);
+              top_diff_buffer_ + n * this->top_dim_, weight_diff);
+              //top_diff + n * this->top_dim_, weight_diff);
         }
         // gradient w.r.t. bottom data, if necessary.
+      //LOG(INFO) << "Backward GPU: Data Gradient";
+     //clock_t begin, end;
+     //double elapsed_secs;
+     //begin= clock();
+      //top_diff_buffer_ = output_buffer_.mutable_cpu_diff(); // temp
+    //end= clock();
+    //elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+    //LOG(INFO) << "The time for GPU to cpu is " << elapsed_secs << " seconds"; 
         if (propagate_down[i]) {
-          this->backward_gpu_gemm_roi(top_diff + n * this->top_dim_, rois, num_rois, weight,
+            // original implementation
+          //this->backward_gpu_gemm_roi(top_diff + n * this->top_dim_, rois, num_rois, weight,
+          //    bottom_diff + n * this->bottom_dim_);
+          this->backward_gpu_gemm_roi(top_diff_buffer_ + n * this->top_dim_, 
+                  mask + n*this->top_dim_, rois, num_rois, weight,
               bottom_diff + n * this->bottom_dim_);
         }
       }
     }
-  }
 }
 
 INSTANTIATE_LAYER_GPU_FUNCS(ROIConvolutionLayer);

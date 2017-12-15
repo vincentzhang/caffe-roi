@@ -29,6 +29,9 @@ void roi_im2col_cpu(const Dtype* data_im, const Dtype* rois, const int
     const int dilation_h, const int dilation_w,
     Dtype* data_col);
 
-}  // namespace caffe
+template <typename Dtype>
+void mask_output_gpu(Dtype* output, Dtype* mask, const Dtype* rois, const int num_rois, 
+        const int channel, const int height, const int width); 
 
+}  // namespace caffe
 #endif  // CAFFE_UTIL_IM2COL_ROI_HPP_

@@ -1,5 +1,8 @@
 #include <algorithm>
 #include <vector>
+#include <boost/range/irange.hpp>
+#include <boost/range/algorithm_ext/push_back.hpp>
+#include <ctime>
 
 #include "caffe/filler.hpp"
 #include "caffe/layers/base_conv_layer.hpp"
@@ -416,21 +419,88 @@ void BaseConvolutionLayer<Dtype>::weight_gpu_gemm_roi(const Dtype* input,
   }
 }
 
+
 template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::backward_gpu_gemm_roi(const Dtype* output,
+void BaseConvolutionLayer<Dtype>::mask_pixels(Dtype* output, const int height, const int width,
+const int channel, const set<int>& pixels){
+   // create a set of a range of pixel indices [0, output_offset_ ]
+   vector<int> p;
+   boost::push_back(p, boost::irange(0, conv_out_spatial_dim_)); // output_offset_ 
+   
+   // get the difference of the set
+   std::vector<int> p_to_change(conv_out_spatial_dim_); 
+   //clock_t begin = clock();
+   vector<int>::iterator it;
+   it=set_difference (p.begin(), p.end(), pixels.begin(), pixels.end(), p_to_change.begin());
+   p_to_change.resize(it-p_to_change.begin());
+   //clock_t end = clock();
+   //double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+   //std::cout << "The time for set difference is " << elapsed_secs << " seconds" << std::endl; 
+   //LOG(INFO) << "full image set size: " << output_offset_ ;
+   //LOG(INFO) << "pixels full set size: " << pixels.size() ;
+   //LOG(INFO) << "pixels set size: " << p_to_change.size() ;
+
+   for (int i=0; i<channel; i++){
+    for (vector<int>::iterator it=p_to_change.begin(); it!=p_to_change.end(); ++it) {
+       //LOG(INFO) << "At pixel location: << " << *it;
+       //LOG(INFO) << "size of dtype: " << sizeof(Dtype);
+       //LOG(INFO) << "original value: " << *(output+(*it));
+            *(output + i*conv_out_spatial_dim_ + (*it)) = (Dtype)0;
+       }
+       //LOG(INFO) << "END: " << i;
+       //LOG(INFO) << "Changing the pixels, set size: " << p_to_change.size() ;
+   }
+   //LOG(INFO) << "End of mask_pixels";
+}
+
+template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::pixel_list(Dtype x1, Dtype y1, Dtype x2, Dtype y2,const int height,
+        const int width, const int channel, set<int>& pixels){
+    // blob shape (N, M, H, W): batch, channel, height, width, width changes
+    // the fastest 
+    //LOG(INFO) << "Begin Pixel_list";
+    set<int>::iterator it=pixels.end();
+    int ind;
+    //LOG(INFO) << "Total number of pixels: " << height*width*channel;
+    //LOG(INFO) << "Before, Pixel_list size" << pixels.size();
+    //for (int k=0; k < channel ; k++) {
+        for(int i=y1; i<y2; i++) {// height
+            for (int j=x1; j<x2; j++){ // width
+                ind =  i * width + j;
+                //ind = (k * height + i) * width + j;
+                //LOG(INFO) << "k=" << k << " i=" << i << " j=" <<  j << " ind=" << ind;
+                it = pixels.insert(it, ind); 
+            }
+        }
+    //}
+    //LOG(INFO) << "After, pixel set size" << pixels.size();
+}
+
+template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::backward_gpu_gemm_roi(Dtype* output, Dtype* mask,
     const Dtype* rois, const int num_rois,
     const Dtype* weights, Dtype* input) {
   Dtype* col_buff = col_buffer_.mutable_gpu_data();
   if (is_1x1_) {
     col_buff = input;
   }
+  //clock_t begin, end;
+  //double elapsed_secs;
   for (int g = 0; g < group_; ++g) {
+    // mask the output
+    //begin= clock();
+    roi_conv_mask_output_gpu(output+output_offset_*g, mask+output_offset_*g, rois, num_rois);
+    //end= clock();
+    //elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+    //LOG(INFO) << "The overall time for mask output is " << elapsed_secs << " seconds"; 
     caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans, kernel_dim_,
         conv_out_spatial_dim_, conv_out_channels_ / group_,
         (Dtype)1., weights + weight_offset_ * g, output + output_offset_ * g,
         (Dtype)0., col_buff + col_offset_ * g);
   }
   if (!is_1x1_) {
+      // do not apply ROI for this step since ROI needs to applied on top_diff
+      // instead of bottom_diff, that is, prior to the convolution
     roi_conv_col2im_gpu(col_buff, rois, num_rois, input);
   }
 }

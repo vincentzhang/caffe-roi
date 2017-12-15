@@ -18,12 +18,14 @@ class ROIConvolutionLayer : public BaseConvolutionLayer<Dtype> {
       : BaseConvolutionLayer<Dtype>(param) {}
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
 
   virtual inline const char* type() const { return "ROIConvolution"; }
 
   virtual inline int MinBottomBlobs() const { return 2; }
-  virtual inline int MinTopBlobs() const { return 1; }
-  virtual inline bool EqualNumBottomTopBlobs() const { return false; }
+  virtual inline int MinTopBlobs() const { return 2; }
+  virtual inline bool EqualNumBottomTopBlobs() const { return true; }
 
  protected:
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -45,10 +47,11 @@ class ROIConvolutionLayer : public BaseConvolutionLayer<Dtype> {
     return result.str();
   }
 
-  Dtype spatial_scale_;
-  Dtype* rois;
-  const Dtype* rois_orig;
-  int num_rois;
+  Dtype spatial_scale_; // scale
+  Dtype* rois; // pointer to the ROIs
+  int num_rois; // number of ROIs
+  Blob<Dtype> output_buffer_; // for storing the diff of top blob, which needs to be masked by ROI during backprop
+  Blob<Dtype> mask_buffer_; // for storing intermediate mask of ROI
 };
 
 }  // namespace caffe
