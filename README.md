@@ -1,7 +1,7 @@
 # This is a fork of caffe that has ROI convolution, which was described in [this paper](https://arxiv.org/abs/1801.02722):
 ```
 End-to-end detection-segmentation network with ROI convolution,
-Zichen Zhang, Min Tang, Dana Cobzas, Dornoosh Zonoobi, Martin Jagersand
+Zichen Zhang, Min Tang, Dana Cobzas, Dornoosh Zonoobi, Martin Jagersand et. al.
 ISBI 2018
 ```
 The main ROI layers are:
